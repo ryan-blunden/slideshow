@@ -1,0 +1,10 @@
+node_modules
+dist
+renders
+.DS_Store
+public/generated
+public/.preview
+public/preview-runtime
+*.log
+media
+assets
