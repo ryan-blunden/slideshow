@@ -1,4 +1,4 @@
-import { Composition, registerRoot, type CalculateMetadataFunction } from "remotion";
+import { type CalculateMetadataFunction, Composition, registerRoot } from "remotion";
 import { SlideshowComposition } from "./SlideshowComposition";
 import { DEFAULT_COMPOSITION_ID, type SlideshowConfig } from "./slideshow";
 import { buildAutoConfig } from "./utils/randomize";
@@ -6,12 +6,12 @@ import { getRuntimeDurationFrames } from "./utils/runtime-config";
 
 const defaultRuntimeConfig: SlideshowConfig = buildAutoConfig({
   inputFiles: [
-    "assets/photos/001.jpg",
-    "assets/photos/002.jpg",
-    "assets/photos/003.jpg",
+    "public/assets/photos/001.jpg",
+    "public/assets/photos/002.jpg",
+    "public/assets/photos/003.jpg",
   ],
-  width: 3840,
-  height: 2160,
+  width: 1920,
+  height: 1080,
   fps: 25,
   durationSeconds: 3,
   crossfadeSeconds: 1,

@@ -1,8 +1,8 @@
 import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
 import type { SlideshowConfig } from "../slideshow";
 import { getSegmentTimelines } from "../utils/timing";
-import { KenBurnsImage } from "./KenBurnsImage";
 import { CrossFade } from "./CrossFade";
+import { KenBurnsImage } from "./KenBurnsImage";
 
 export type SlideshowSequenceProps = {
   config: SlideshowConfig;
@@ -25,7 +25,7 @@ export const SlideshowSequence = ({ config }: SlideshowSequenceProps) => {
 
         return (
           <Sequence
-            key={`${segment.src}-${index}`}
+            key={`${segment.src}-${timeline.startFrame}`}
             from={timeline.startFrame}
             durationInFrames={timeline.layerDurationFrames}
             layout="none"
@@ -46,7 +46,7 @@ export const SlideshowSequence = ({ config }: SlideshowSequenceProps) => {
                 fromY={segment.kenBurns.fromY}
                 toY={segment.kenBurns.toY}
                 easing="linear"
-                fit={config.defaults.fit}
+                fit={segment.fit}
               />
             </CrossFade>
           </Sequence>

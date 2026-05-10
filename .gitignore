@@ -1,10 +1,13 @@
 node_modules
 dist
 renders
+.playwright-mcp
 .DS_Store
 public/generated
 public/.preview
 public/preview-runtime
 *.log
+preview*.png
+lyrics-preview.png
 media
 assets

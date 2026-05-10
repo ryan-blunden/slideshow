@@ -18,6 +18,20 @@ export type SlideshowAudioConfig = {
   enabled: boolean;
 };
 
+export type RuntimeLyricLine = {
+  startFrame: number;
+  text: string;
+  nextStartFrame?: number;
+};
+
+export type LyricsConfig = {
+  lines: RuntimeLyricLine[];
+  startOffsetFrames: number;
+  fadeInFrames: number;
+  fadeOutFrames: number;
+  fadeOutOffsetFrames: number;
+};
+
 export type SlideshowDefaults = {
   imageDurationFrames: number;
   crossfadeFrames: number;
@@ -25,18 +39,21 @@ export type SlideshowDefaults = {
   fit: FitMode;
   fromScale: number;
   toScale: number;
+  minImageDimensionPercent: number;
 };
 
 export type SlideshowSegment = {
   src: string;
   durationFrames?: number;
   kenBurns?: KenBurnsConfig;
+  fit?: FitMode;
 };
 
 export type RuntimeSlideshowSegment = {
   src: string;
   durationFrames: number;
   kenBurns: KenBurnsConfig;
+  fit: FitMode;
 };
 
 export type SlideshowConfig = {
@@ -47,6 +64,7 @@ export type SlideshowConfig = {
   output: string;
   backgroundColor: string;
   audio?: SlideshowAudioConfig;
+  lyrics?: LyricsConfig;
   defaults: SlideshowDefaults;
   segments: RuntimeSlideshowSegment[];
 };

@@ -4,14 +4,14 @@
   "private": true,
   "type": "module",
   "bin": {
-    "vidtools": "./bin/vidtools.js",
-    "slideshow": "./bin/slideshow.js"
+    "vidtools": "./bin/vidtools.js"
   },
   "scripts": {
     "dev": "remotion studio",
     "render": "tsx scripts/render.ts",
     "preview": "tsx scripts/preview.ts",
     "smoke": "tsx scripts/smoke.ts",
+    "smart-crop": "tsx scripts/smart-crop.ts",
     "lint": "biome lint .",
     "format": "biome format --write .",
     "format:check": "biome format --check .",
@@ -27,6 +27,7 @@
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "remotion": "4.0.459",
+    "smartcrop-cli": "^2.0.3",
     "tsx": "^4.19.4",
     "zod": "^3.24.1"
   },
@@ -41,7 +42,6 @@
     "bin",
     "scripts",
     "src",
-    "slideshow",
     "README.md"
   ]
 }

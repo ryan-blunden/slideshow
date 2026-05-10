@@ -1,12 +1,11 @@
 import { Player } from "@remotion/player";
 import { createRoot } from "react-dom/client";
-import { SlideshowComposition } from "../SlideshowComposition";
-import { getRuntimeDurationFrames } from "../utils/runtime-config";
+import { LyricsComposition } from "../LyricsComposition";
 
-const bootstrap = window.__SLIDESHOW_PREVIEW__;
+const bootstrap = window.__VIDTOOLS_LYRICS_PREVIEW__;
 
 if (!bootstrap) {
-  throw new Error("Preview bootstrap data was not found.");
+  throw new Error("Lyrics preview bootstrap data was not found.");
 }
 
 const App = () => {
@@ -17,7 +16,8 @@ const App = () => {
       style={{
         minHeight: "100vh",
         margin: 0,
-        background: "linear-gradient(180deg, #101114 0%, #050608 100%)",
+        background:
+          "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.1), transparent 30%), linear-gradient(180deg, #171717 0%, #080808 100%)",
         color: "#f5f5f4",
         fontFamily: "ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
       }}
@@ -28,20 +28,20 @@ const App = () => {
           gridTemplateColumns: "1fr",
           gap: 24,
           padding: 24,
-          maxWidth: 1600,
+          maxWidth: 1800,
           margin: "0 auto",
         }}
       >
         <header>
           <div style={{ fontSize: 13, letterSpacing: 2, textTransform: "uppercase", opacity: 0.7 }}>
-            Local Preview
+            Lyrics Preview
           </div>
         </header>
 
         <Player
-          component={SlideshowComposition}
+          component={LyricsComposition}
           inputProps={config}
-          durationInFrames={getRuntimeDurationFrames(config)}
+          durationInFrames={config.durationInFrames}
           compositionWidth={config.width}
           compositionHeight={config.height}
           fps={config.fps}

@@ -1,4 +1,12 @@
-import type { KenBurnsConfig, SlideshowConfig, SlideshowDefaults, SlideshowSegment, RuntimeSlideshowSegment } from "../slideshow";
+import type {
+  FitMode,
+  KenBurnsConfig,
+  RuntimeSlideshowSegment,
+  SlideshowConfig,
+  SlideshowDefaults,
+  SlideshowSegment,
+} from "../slideshow";
+import type { ImageDimensions } from "./slideshow-files";
 
 const collator = new Intl.Collator(undefined, {
   numeric: true,
@@ -58,6 +66,36 @@ function minSafeScale(
   return Math.max(requiredX, requiredY);
 }
 
+function createNeutralKenBurns(): KenBurnsConfig {
+  return {
+    fromScale: 1,
+    toScale: 1,
+    fromX: 0,
+    toX: 0,
+    fromY: 0,
+    toY: 0,
+  };
+}
+
+function shouldDisableMotion({
+  imageDimensions,
+  width,
+  height,
+  minImageDimensionPercent,
+}: {
+  imageDimensions?: ImageDimensions;
+  width: number;
+  height: number;
+  minImageDimensionPercent: number;
+}): boolean {
+  if (!imageDimensions) {
+    return false;
+  }
+
+  const fraction = percentToFraction(minImageDimensionPercent);
+  return imageDimensions.width < width * fraction || imageDimensions.height < height * fraction;
+}
+
 function maxTravelAlongAngle({
   width,
   height,
@@ -86,6 +124,7 @@ function createAutoKenBurns({
   defaults,
   motionPercent,
   zoomPercent,
+  disableMotion,
 }: {
   src: string;
   index: number;
@@ -94,7 +133,12 @@ function createAutoKenBurns({
   defaults: SlideshowDefaults;
   motionPercent: number;
   zoomPercent: number;
+  disableMotion: boolean;
 }): KenBurnsConfig {
+  if (disableMotion) {
+    return createNeutralKenBurns();
+  }
+
   const seed = hashString(`${src}:${index}`);
   const angle = randomBetween(seed, 0, Math.PI * 2);
   const unitX = Math.cos(angle);
@@ -150,6 +194,7 @@ export function buildRuntimeSegments({
   width,
   height,
   defaults,
+  imageDimensionsByPath,
   motionPercent = 6,
   zoomPercent = 8,
 }: {
@@ -157,11 +202,19 @@ export function buildRuntimeSegments({
   width: number;
   height: number;
   defaults: SlideshowDefaults;
+  imageDimensionsByPath?: Record<string, ImageDimensions>;
   motionPercent?: number;
   zoomPercent?: number;
 }): RuntimeSlideshowSegment[] {
   return segments.map((segment, index) => {
     const durationFrames = segment.durationFrames ?? defaults.imageDurationFrames;
+    const fit: FitMode = segment.fit ?? defaults.fit;
+    const disableMotion = shouldDisableMotion({
+      imageDimensions: imageDimensionsByPath?.[segment.src],
+      width,
+      height,
+      minImageDimensionPercent: defaults.minImageDimensionPercent,
+    });
     const autoMotion = segment.kenBurns
       ? null
       : createAutoKenBurns({
@@ -172,6 +225,7 @@ export function buildRuntimeSegments({
           defaults,
           motionPercent,
           zoomPercent,
+          disableMotion,
         });
     const baseKenBurns = segment.kenBurns ?? autoMotion;
 
@@ -188,6 +242,15 @@ export function buildRuntimeSegments({
       toY: baseKenBurns.toY ?? 0,
     };
 
+    if (disableMotion) {
+      return {
+        src: segment.src,
+        durationFrames,
+        kenBurns: createNeutralKenBurns(),
+        fit,
+      };
+    }
+
     if (Math.abs(kenBurns.toScale - kenBurns.fromScale) < 0.02) {
       if (kenBurns.toScale >= kenBurns.fromScale) {
         kenBurns.toScale = Number((kenBurns.fromScale + 0.08).toFixed(3));
@@ -200,6 +263,7 @@ export function buildRuntimeSegments({
       src: segment.src,
       durationFrames,
       kenBurns,
+      fit,
     };
   });
 }
@@ -215,8 +279,10 @@ export function buildAutoConfig({
   compositionId,
   backgroundColor,
   audio,
+  imageDimensionsByPath,
   motionPercent = 6,
   zoomPercent = 8,
+  minImageDimensionPercent = 100,
 }: {
   inputFiles: string[];
   width: number;
@@ -228,8 +294,10 @@ export function buildAutoConfig({
   compositionId: string;
   backgroundColor: string;
   audio?: SlideshowConfig["audio"];
+  imageDimensionsByPath?: Record<string, ImageDimensions>;
   motionPercent?: number;
   zoomPercent?: number;
+  minImageDimensionPercent?: number;
 }): SlideshowConfig {
   const imageDurationFrames = Math.round(durationSeconds * fps);
   const crossfadeFrames = Math.round(crossfadeSeconds * fps);
@@ -237,9 +305,10 @@ export function buildAutoConfig({
     imageDurationFrames,
     crossfadeFrames,
     easing: "easeInOut" as const,
-    fit: "cover" as const,
+    fit: "contain" as const,
     fromScale: 1.05,
     toScale: 1.18,
+    minImageDimensionPercent,
   };
 
   return {
@@ -256,6 +325,7 @@ export function buildAutoConfig({
       width,
       height,
       defaults,
+      imageDimensionsByPath,
       motionPercent,
       zoomPercent,
     }),

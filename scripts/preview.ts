@@ -1,15 +1,25 @@
+import { spawnSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import fsp from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
-import crypto from "node:crypto";
 import { Command } from "commander";
 import { build } from "esbuild";
-import { buildAutoConfig } from "../src/utils/randomize";
-import { listInputImages, slugify, stageFilesToPublic, stageOptionalAudioToPublic } from "../src/utils/slideshow-files";
-import type { SlideshowConfig } from "../src/slideshow";
-import { getRuntimeDurationFrames } from "../src/utils/runtime-config";
 import type { PreviewBootstrap } from "../src/preview/bootstrap";
+import type { SlideshowConfig } from "../src/slideshow";
+import { buildAutoConfig } from "../src/utils/randomize";
+import { getRuntimeDurationFrames } from "../src/utils/runtime-config";
+import { selectImagesForSlideshowDuration } from "../src/utils/slideshow-duration";
+import {
+  listInputImages,
+  readImageDimensionsByPath,
+  removePathIfExists,
+  removeStagingDir,
+  slugify,
+  stageFilesToPublic,
+  stageOptionalAudioToPublic,
+} from "../src/utils/slideshow-files";
 import { packagePublicRoot, packageRoot } from "./runtime-paths";
 
 type CliOptions = {
@@ -18,9 +28,12 @@ type CliOptions = {
   crossFade: string;
   motion: string;
   zoom: string;
+  slideshowDuration?: string;
   width: string;
   height: string;
   fps: string;
+  backgroundColor: string;
+  minImageDimensionPercent: string;
   port: string;
   audio?: string;
 };
@@ -31,12 +44,27 @@ program
   .argument("[inputDir]", "directory of local images")
   .option("--input <dir>", "alias for the input directory")
   .option("--duration <seconds>", "per-image duration in seconds", "3.0")
-  .option("--cross-fade <seconds>", "cross-fade duration in seconds", "1.0")
-  .option("--motion <percent>", "pan amount as a percent of the clip's available travel; 0 disables pan", "6")
+  .option(
+    "--cross-fade <seconds>",
+    "cross-fade duration in seconds; overlaps adjacent images without shortening total runtime",
+    "1.0",
+  )
+  .option(
+    "--motion <percent>",
+    "pan amount as a percent of the clip's available travel; 0 disables pan",
+    "6",
+  )
   .option("--zoom <percent>", "zoom amount as a percent scale change over the whole clip", "8")
-  .option("--width <pixels>", "output width", "3840")
-  .option("--height <pixels>", "output height", "2160")
+  .option("--slideshow-duration <seconds>", "maximum total slideshow duration in seconds")
+  .option("--width <pixels>", "output width", "1920")
+  .option("--height <pixels>", "output height", "1080")
   .option("--fps <fps>", "frames per second", "25")
+  .option("--background-color <color>", "background color for letterboxed slides", "#000000")
+  .option(
+    "--min-image-dimension-percent <percent>",
+    "disable motion when either source dimension falls below this percent of the output size",
+    "100",
+  )
   .option("--port <port>", "preview server port", "3000")
   .option("--audio <path>", "optional guide audio file")
   .parse(process.argv);
@@ -53,11 +81,21 @@ const height = Number(options.height);
 const fps = Number(options.fps);
 const durationSeconds = Number(options.duration);
 const crossfadeSeconds = Number(options.crossFade);
+const slideshowDurationSeconds = options.slideshowDuration
+  ? Number(options.slideshowDuration)
+  : undefined;
 const motionPercent = Number(options.motion);
 const zoomPercent = Number(options.zoom);
+const backgroundColor = options.backgroundColor;
+const minImageDimensionPercent = Number(options.minImageDimensionPercent);
 const port = Number(options.port);
-const normalizedMotionPercent = Number.isFinite(motionPercent) ? Math.min(100, Math.max(0, motionPercent)) : 6;
-const normalizedZoomPercent = Number.isFinite(zoomPercent) ? Math.min(100, Math.max(0, zoomPercent)) : 8;
+const normalizedMotionPercent = Number.isFinite(motionPercent)
+  ? Math.min(100, Math.max(0, motionPercent))
+  : 6;
+const normalizedZoomPercent = Number.isFinite(zoomPercent)
+  ? Math.min(100, Math.max(0, zoomPercent))
+  : 8;
+const audioPath = options.audio ? path.resolve(cwd, options.audio) : undefined;
 
 function normalizePreviewRoute(inputPath: string): string {
   const asPosix = inputPath.replace(/\\/g, "/");
@@ -80,11 +118,42 @@ function ensurePositiveInteger(value: number, label: string) {
   }
 }
 
+function killProcessListeningOnPort(targetPort: number): void {
+  const probe = spawnSync("lsof", [`-tiTCP:${targetPort}`, "-sTCP:LISTEN"], {
+    encoding: "utf8",
+  });
+
+  if (probe.status !== 0) {
+    return;
+  }
+
+  const pids = String(probe.stdout)
+    .trim()
+    .split(/\s+/)
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0);
+
+  if (pids.length === 0) {
+    return;
+  }
+
+  console.log(`Preview port ${targetPort} is already in use. Stopping ${pids.length} process(es).`);
+
+  for (const pid of pids) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      // Ignore races where the process exits before we can signal it.
+    }
+  }
+}
+
 async function main() {
   ensurePositiveInteger(width, "Width");
   ensurePositiveInteger(height, "Height");
   ensurePositiveInteger(fps, "FPS");
   ensurePositiveInteger(port, "Port");
+  killProcessListeningOnPort(port);
 
   const previewRoute = normalizePreviewRoute(rawInputDir);
   const files = await listInputImages(inputDir);
@@ -92,9 +161,38 @@ async function main() {
     throw new Error(`No images found in ${inputDir}`);
   }
 
+  await Promise.all([removePathIfExists(path.join(packagePublicRoot, ".preview"))]);
+
+  const slideshowSelection = selectImagesForSlideshowDuration({
+    inputFiles: files,
+    durationFrames: Math.round(durationSeconds * fps),
+    crossfadeFrames: Math.round(crossfadeSeconds * fps),
+    slideshowDurationSeconds,
+    fps,
+  });
+
+  if (slideshowSelection.excludedFiles.length > 0) {
+    console.log(
+      [
+        `Requested slideshow duration: ${slideshowDurationSeconds} seconds`,
+        `Using ${slideshowSelection.includedFiles.length} of ${files.length} images to fit the requested length.`,
+        `Excluding ${slideshowSelection.excludedFiles.length} image(s):`,
+        ...slideshowSelection.excludedFiles.map(
+          (file) => `  - ${path.relative(cwd, file) || file}`,
+        ),
+      ].join("\n"),
+    );
+  } else if (slideshowDurationSeconds !== undefined) {
+    console.log(
+      `Requested slideshow duration: ${slideshowDurationSeconds} seconds; all ${files.length} image(s) fit.`,
+    );
+  }
+
+  const imageDimensionsByPath = await readImageDimensionsByPath(slideshowSelection.includedFiles);
+
   const outputName = path.join("renders", `${slugify(path.basename(inputDir))}.mov`);
   const config = buildAutoConfig({
-    inputFiles: files,
+    inputFiles: slideshowSelection.includedFiles,
     width,
     height,
     fps,
@@ -102,12 +200,16 @@ async function main() {
     crossfadeSeconds,
     output: outputName,
     compositionId: `${slugify(path.basename(inputDir))}-slideshow`,
-    backgroundColor: "#000000",
+    backgroundColor,
     motionPercent: normalizedMotionPercent,
     zoomPercent: normalizedZoomPercent,
-    audio: options.audio
+    minImageDimensionPercent: Number.isFinite(minImageDimensionPercent)
+      ? minImageDimensionPercent
+      : 100,
+    imageDimensionsByPath,
+    audio: audioPath
       ? {
-          src: options.audio,
+          src: audioPath,
           volume: 0.8,
           enabled: true,
         }
@@ -226,6 +328,37 @@ async function main() {
       res.end("Not found");
     }
   });
+
+  let cleanedUp = false;
+  const cleanup = async () => {
+    if (cleanedUp) {
+      return;
+    }
+
+    cleanedUp = true;
+    await Promise.all([
+      removeStagingDir(packagePublicRoot, stagingName),
+      removePathIfExists(runtimeDir),
+    ]);
+  };
+
+  const shutdown = (_signal: NodeJS.Signals) => {
+    server.close(() => {
+      void cleanup()
+        .then(() => {
+          process.exitCode = 0;
+          process.exit(0);
+        })
+        .catch((error) => {
+          console.error(error instanceof Error ? error.message : error);
+          process.exitCode = 1;
+          process.exit(1);
+        });
+    });
+  };
+
+  process.once("SIGINT", shutdown);
+  process.once("SIGTERM", shutdown);
 
   server.listen(port, () => {
     console.log(`Preview running at http://localhost:${port}${previewRoute}`);

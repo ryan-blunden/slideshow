@@ -1,6 +1,6 @@
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
 import { buildAutoConfig } from "../src/utils/randomize";
 import { getRuntimeDurationFrames } from "../src/utils/runtime-config";
 import { listInputImages, slugify } from "../src/utils/slideshow-files";
@@ -16,12 +16,11 @@ type Case = {
 const cwd = process.cwd();
 const outputDir = path.join(cwd, "renders", "smoke-tests");
 const cases: Case[] = [
-  { name: "no-pan", motion: 0, zoom: 8, input: "assets/photos" },
-  { name: "balanced", motion: 6, zoom: 8, input: "assets/photos" },
-  { name: "subtle", motion: 3, zoom: 4, input: "assets/photos" },
-  { name: "cinematic", motion: 8, zoom: 10, input: "assets/photos" },
-  { name: "motion-heavy", motion: 9, zoom: 5, input: "assets/photos" },
-  { name: "zoom-heavy", motion: 4, zoom: 10, input: "assets/photos" },
+  { name: "no-pan", motion: 0, zoom: 8, input: "public/assets/photos" },
+  { name: "balanced", motion: 6, zoom: 8, input: "public/assets/photos" },
+  { name: "subtle", motion: 3, zoom: 4, input: "public/assets/photos" },
+  { name: "motion-heavy", motion: 9, zoom: 5, input: "public/assets/photos" },
+  { name: "zoom-heavy", motion: 4, zoom: 10, input: "public/assets/photos" },
 ];
 
 fs.mkdirSync(outputDir, { recursive: true });

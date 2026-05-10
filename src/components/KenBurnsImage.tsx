@@ -1,5 +1,5 @@
-import { Img, Easing, interpolate, useCurrentFrame } from "remotion";
-import type { FitMode, EasingName } from "../slideshow";
+import { Easing, Img, interpolate, useCurrentFrame } from "remotion";
+import type { EasingName, FitMode } from "../slideshow";
 
 const easingMap: Record<EasingName, (value: number) => number> = {
   linear: Easing.linear,
