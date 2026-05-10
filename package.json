@@ -12,7 +12,10 @@
     "render": "tsx scripts/render.ts",
     "preview": "tsx scripts/preview.ts",
     "smoke": "tsx scripts/smoke.ts",
-    "check": "tsc --noEmit"
+    "lint": "biome lint .",
+    "format": "biome format --write .",
+    "format:check": "biome format --check .",
+    "check": "biome check . && tsc --noEmit"
   },
   "dependencies": {
     "@remotion/bundler": "4.0.459",
@@ -20,14 +23,15 @@
     "@remotion/player": "^4.0.459",
     "@remotion/renderer": "4.0.459",
     "commander": "^13.1.0",
+    "esbuild": "^0.28.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "remotion": "4.0.459",
-    "esbuild": "^0.28.0",
     "tsx": "^4.19.4",
     "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.15",
     "@types/node": "^22.15.2",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
