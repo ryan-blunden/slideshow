@@ -304,7 +304,6 @@ export function buildAutoConfig({
   const defaults = {
     imageDurationFrames,
     crossfadeFrames,
-    easing: "easeInOut" as const,
     fit: "contain" as const,
     fromScale: 1.05,
     toScale: 1.18,

@@ -4,6 +4,7 @@ import path from "node:path";
 import { Command } from "commander";
 import {
   listInputImages,
+  readImageDimensions,
   readImageDimensionsByPath,
   removePathIfExists,
 } from "../src/utils/slideshow-files";
@@ -143,6 +144,46 @@ function runTopCrop(sourceFile: string, outputFile: string) {
   );
 }
 
+async function normalizeOutputDimensions(destinationFile: string) {
+  const dimensions = await readImageDimensions(destinationFile);
+  if (dimensions.width === width && dimensions.height === height) {
+    return;
+  }
+
+  const tempFile = `${destinationFile}.tmp${path.extname(destinationFile)}`;
+  const result = spawnSync(
+    "magick",
+    [
+      destinationFile,
+      "-background",
+      "black",
+      "-gravity",
+      "center",
+      "-extent",
+      `${width}x${height}`,
+      tempFile,
+    ],
+    {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
+
+  if (result.status !== 0) {
+    const stderr = result.stderr?.trim() ?? "";
+    const stdout = result.stdout?.trim() ?? "";
+    const combined = [stdout, stderr].filter(Boolean).join("\n");
+    throw new Error(
+      combined.length > 0
+        ? `Unable to normalize ${destinationFile} to ${width}x${height}: ${combined}`
+        : `Unable to normalize ${destinationFile} to ${width}x${height}.`,
+    );
+  }
+
+  await fs.rm(destinationFile, { force: true });
+  await fs.rename(tempFile, destinationFile);
+}
+
 async function main() {
   ensurePositiveInteger(width, "Width");
   ensurePositiveInteger(height, "Height");
@@ -203,6 +244,7 @@ async function main() {
       throw new Error(imageMagickDependencyMessage([stdout, stderr].filter(Boolean).join("\n")));
     }
 
+    await normalizeOutputDimensions(destinationFile);
     console.log(`${path.relative(cwd, destinationFile) || destinationFile}`);
   }
 

@@ -30,7 +30,6 @@ const Root = () => {
         backgroundColor: "transparent",
         lyrics: {
           lines: [],
-          startOffsetFrames: 0,
           fadeInFrames: 0,
           fadeOutFrames: 0,
           fadeOutOffsetFrames: 0,

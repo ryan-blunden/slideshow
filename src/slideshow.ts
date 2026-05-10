@@ -26,7 +26,6 @@ export type RuntimeLyricLine = {
 
 export type LyricsConfig = {
   lines: RuntimeLyricLine[];
-  startOffsetFrames: number;
   fadeInFrames: number;
   fadeOutFrames: number;
   fadeOutOffsetFrames: number;
@@ -35,7 +34,6 @@ export type LyricsConfig = {
 export type SlideshowDefaults = {
   imageDurationFrames: number;
   crossfadeFrames: number;
-  easing: EasingName;
   fit: FitMode;
   fromScale: number;
   toScale: number;

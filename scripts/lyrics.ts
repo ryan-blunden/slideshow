@@ -294,7 +294,6 @@ async function buildRuntimeBundle(
               enabled: true,
             }
           : undefined,
-        font: fontConfig,
       },
       outputLocation,
       previewRoute,

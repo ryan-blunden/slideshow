@@ -13,7 +13,6 @@ export type RuntimeLyricLine = {
 
 export type LyricsConfig = {
   lines: RuntimeLyricLine[];
-  startOffsetFrames: number;
   fadeInFrames: number;
   fadeOutFrames: number;
   fadeOutOffsetFrames: number;
@@ -135,7 +134,6 @@ export function buildLyricsConfig(
 
   return {
     lines: linkedLines,
-    startOffsetFrames: Math.max(0, msToFrames(startOffsetMs, fps)),
     fadeInFrames,
     fadeOutFrames,
     fadeOutOffsetFrames,

@@ -1,4 +1,5 @@
 import { AbsoluteFill, Audio, Img, staticFile, useCurrentFrame, Video } from "remotion";
+import { getLyricLineOpacity } from "./components/lyrics-opacity";
 import type { LyricsConfig } from "./lyrics";
 
 export const DEFAULT_LYRICS_COMPOSITION_ID = "lyrics";
@@ -14,11 +15,6 @@ export type LyricsRuntimeBackgroundConfig = {
   kind: "image" | "video";
 };
 
-export type LyricsRuntimeFontConfig = {
-  src: string;
-  family: string;
-};
-
 export type LyricsRuntimeConfig = {
   compositionId: string;
   width: number;
@@ -32,7 +28,6 @@ export type LyricsRuntimeConfig = {
   fontFaceCss?: string;
   audio?: LyricsRuntimeAudioConfig;
   background?: LyricsRuntimeBackgroundConfig;
-  font?: LyricsRuntimeFontConfig;
 };
 
 export const LyricsComposition = (config: LyricsRuntimeConfig) => {
@@ -77,44 +72,11 @@ export const LyricsComposition = (config: LyricsRuntimeConfig) => {
       <style>{config.themeCss}</style>
 
       {config.lyrics.lines.map((line) => {
-        const fadeInEndFrame = line.startFrame + config.lyrics.fadeInFrames;
-        const fadeOutStartFrame = Math.max(
-          line.startFrame,
-          line.nextStartFrame != null
-            ? line.nextStartFrame - config.lyrics.fadeOutOffsetFrames
-            : config.durationInFrames - config.lyrics.fadeOutFrames,
-        );
-        const fadeOutEndFrame = fadeOutStartFrame + config.lyrics.fadeOutFrames;
-
-        const fadeInOpacity =
-          config.lyrics.fadeInFrames > 0
-            ? Math.max(
-                0,
-                Math.min(
-                  1,
-                  (frame - line.startFrame) / Math.max(1, fadeInEndFrame - line.startFrame),
-                ),
-              )
-            : frame >= line.startFrame
-              ? 1
-              : 0;
-
-        const fadeOutOpacity =
-          config.lyrics.fadeOutFrames > 0
-            ? Math.max(
-                0,
-                Math.min(
-                  1,
-                  (fadeOutEndFrame - frame) / Math.max(1, fadeOutEndFrame - fadeOutStartFrame),
-                ),
-              )
-            : 1;
-
         return (
           <AbsoluteFill
             key={`${line.startFrame}-${line.nextStartFrame ?? "end"}-${line.text}`}
             style={{
-              opacity: fadeInOpacity * fadeOutOpacity,
+              opacity: getLyricLineOpacity(frame, line, config.lyrics, config.durationInFrames),
               pointerEvents: "none",
             }}
           >
